@@ -8,6 +8,7 @@ But what if you need only a simple installation without too much hassle?
 # TODO
 
 - cluster initialization
+- readiness probe
 - on node 1 there is an error popping up from time to time
 
 ```
