@@ -29,12 +29,12 @@ jobs:
 
     - name: Package Helm Chart
       run: |
-        helm package .  # Replace with your chart directory
+        helm package . 
         mv *.tgz packaged-chart.tgz
 
     - name: Push Helm Chart to GHCR
       run: |
-        CHART_VERSION=$(helm show chart ./chart-directory | grep 'version:' | awk '{print $2}')
+        CHART_VERSION=$(helm show chart . | grep 'version:' | awk '{print $2}')
         helm push packaged-chart.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
 
     - name: Verify Push
