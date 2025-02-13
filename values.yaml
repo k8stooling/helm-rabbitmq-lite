@@ -1,0 +1,124 @@
+# Default values for rabbitmq.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 2
+
+image:
+  repository: public.ecr.aws/docker/library/rabbitmq
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 999
+
+securityContext:
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  runAsUser: 999
+
+service:
+  type: ClusterIP
+
+resources:
+  limits:
+    cpu: 512m
+    memory: 800Mi
+  requests:
+    cpu: 256m
+    memory: 400Mi
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+topologySpreadConstraints:
+  enabled: true
+
+
+
+ingress: {}
+  # className: 
+  # annotations:
+  #   cert-manager.io/cluster-issuer: 
+  # hosts:
+  # - 
+
+persistence:
+  enabled: true # Set to true if you want to use PersistentVolumeClaims
+  size: 2Gi     # Default storage size for your volume claim
+  storageClass: standard # The storage class to be used (or leave blank to use the default)
+
+config:
+  log_console_level: info   # Options: debug, info, warning, error
+  log_file_level: info
+  cluster_partition_handling: autoheal
+
+ciliumNetworkPolicy:
+  enabled: false
+  allowed_labels: []
+  # - "app: worker"
+  # - "app: tasker"
+
+debug_sidecar:
+  enabled: false
+  image: #TBD
+  resources:
+    limits:
+      cpu: 128m
+      memory: 128Mi
+    requests:
+      cpu: 64m
+      memory: 64Mi
+  securityContext:
+    privileged: true
+    runAsUser: 0
+
+KyvernoPolicyException:
+  enabled: false
+  exceptions: []
+  # - policyName: restrict-image-registries
+  #   ruleNames:
+  #   - validate-registries
+  # - policyName: psp-restrict-adding-capabilities
+  #   ruleNames:
+  #   - autogen-allowed-capabilities
+

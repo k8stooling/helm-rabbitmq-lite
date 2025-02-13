@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rabbitmq.fullname" . }}
+  labels:
+    {{- include "rabbitmq.labels" . | nindent 4 }}
+data:
+  rabbitmq.conf: |
+    log.file.level = {{.Values.config.log_file_level }}
+    log.console.level = {{.Values.config.log_console_level }}
+    cluster_partition_handling = {{.Values.config.cluster_partition_handling }}
+
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_management_agent,rabbitmq_peer_discovery_k8s,rabbitmq_prometheus].

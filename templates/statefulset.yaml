@@ -1,0 +1,184 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "rabbitmq.fullname" . }}
+  labels:
+    {{- include "rabbitmq.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "rabbitmq.fullname" . }}
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rabbitmq.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "rabbitmq.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rabbitmq.serviceAccountName" . }}
+      podSecurityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      dnsConfig:
+        searches:
+        - {{ include "rabbitmq.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local 
+        - {{ .Release.Namespace }}.svc.cluster.local 
+        - svc.cluster.local 
+        - cluster.local 
+        - eu-central-1.compute.internal
+
+      {{- if .Values.topologySpreadConstraints.enabled }}
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            {{- include "rabbitmq.selectorLabels" . | nindent 12 }}
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            {{- include "rabbitmq.selectorLabels" . | nindent 12 }}
+      {{- end }}
+
+      initContainers:
+        - name: set-erlang-cookie
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              chmod 600 /var/lib/rabbitmq/.erlang.cookie
+              echo -n "$RABBITMQ_ERLANG_COOKIE" > /var/lib/rabbitmq/.erlang.cookie
+              chmod 400 /var/lib/rabbitmq/.erlang.cookie
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: RABBITMQ_ERLANG_COOKIE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rabbitmq.fullname" . }}-config
+                  key: erlang-cookie
+          volumeMounts:
+            - name: {{ include "rabbitmq.fullname" . }}-data
+              mountPath: /var/lib/rabbitmq
+          resources:
+            limits:
+              cpu: 32m
+              memory: 32Mi
+            requests:
+              cpu: 32m
+              memory: 32Mi
+
+      containers:
+      {{- if .Values.debug_sidecar.enabled }}
+        - command:
+          - /bin/sh
+          - -c
+          - while true; do sleep 30; done
+          image: {{ .Values.debug_sidecar.image }}
+          imagePullPolicy: Always
+          name: debug
+          resources:
+            {{- toYaml .Values.debug_sidecar.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.debug_sidecar.securityContext | nindent 12 }}
+      {{- end }}
+        - name: rabbit
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: [ "/bin/bash", "-c", "--" ]
+          args:
+            - |
+              export PATH=$PATH:/opt/rabbitmq/sbin:/opt/erlang/bin:/opt/openssl/bin
+              rabbitmq-server start
+          env:
+          - name: RABBITMQ_ADMIN_PASS
+            valueFrom:
+              secretKeyRef:
+                key: admin-pass
+                name: {{ include "rabbitmq.fullname" . }}-config
+          - name: RABBITMQ_USE_LONGNAME
+            value: "false"
+          - name: RABBITMQ_FORCE_BOOT
+            value: "yes"
+          ports:
+            - containerPort: 5672
+              name: amqp
+              protocol: TCP
+            - containerPort: 4369
+              name: epmd
+              protocol: TCP
+            - containerPort: 25672
+              name: rabbitmq-dist
+              protocol: TCP
+            - containerPort: 15672
+              name: management
+              protocol: TCP
+          # readinessProbe:
+          #   exec:
+          #     command:
+          #       - sh
+          #       - -ec
+          #       - rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms
+          #   initialDelaySeconds: 90
+          #   periodSeconds: 15
+          #   timeoutSeconds: 5
+          #   failureThreshold: 5
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - rabbitmq-diagnostics -q ping
+            initialDelaySeconds: 180
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: {{ include "rabbitmq.fullname" . }}-data
+              mountPath: /var/lib/rabbitmq
+            - name: rabbitmq-config
+              mountPath: /etc/rabbitmq
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: rabbitmq-config
+        configMap:
+          name: {{ include "rabbitmq.fullname" . }}
+
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ include "rabbitmq.fullname" . }}-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size  }}
+        storageClassName: {{ .Values.persistence.storageClass }}
