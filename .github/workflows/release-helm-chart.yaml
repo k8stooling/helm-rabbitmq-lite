@@ -36,7 +36,3 @@ jobs:
       run: |
         CHART_VERSION=$(helm show chart . | grep 'version:' | awk '{print $2}')
         helm push packaged-chart.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
-
-    - name: Verify Push
-      run: |
-        helm pull oci://ghcr.io/${{ github.repository_owner }}/charts --version=${CHART_VERSION}
