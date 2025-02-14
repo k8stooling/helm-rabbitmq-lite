@@ -23,11 +23,5 @@ spec:
         names:
         - {{ include "rabbitmq.name" . }}*
   exceptions:
-  {{- range .Values.KyvernoPolicyException.exceptions }}
-  - policyName: {{ .policyName }}
-    ruleNames:
-    {{- range .ruleNames }}
-    - {{ . }}
-    {{- end }}
-  {{- end }}
+    {{- toYaml .Values.KyvernoPolicyException.exceptions | nindent 8}}
 {{- end }}
