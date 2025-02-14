@@ -1,59 +1,53 @@
-{{- if .Values.ciliumNetworkPolicy.enabled }}
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
 metadata:
   name: {{ include "rabbitmq.name" . }}-allow
   labels:
     {{- include "rabbitmq.labels" . | nindent 4 }}
 spec:
-  endpointSelector:
+  podSelector:
     matchLabels:
       app.kubernetes.io/name: {{ include "rabbitmq.name" . }}
+  policyTypes:
+    - Ingress
+    - Egress
   ingress:
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: {{ include "rabbitmq.name" . }}
-      toPorts:
-        - ports:
-            - port: "5672"    # AMQP
-              protocol: TCP
-            - port: "4369"    # epmd (Erlang discovery)
-              protocol: TCP
-            - port: "25672"   # Inter-node communication (Erlang distribution)
-              protocol: TCP
-            - port: "15672"   # Management UI
-              protocol: TCP
-            - port: "35672-35682" # CLI tools (Erlang client ports)
-              protocol: TCP
-            - port: "6000-6500"  # RabbitMQ Stream replication
-              protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "rabbitmq.name" . }}
+      ports:
+        - port: 5672
+          protocol: TCP
+        - port: 4369
+          protocol: TCP
+        - port: 25672
+          protocol: TCP
+        - port: 15672
+          protocol: TCP
   {{- range .Values.ciliumNetworkPolicy.allowed_labels }}
-    - fromEndpoints:
-        - matchLabels:
-            {{ . }}
-      toPorts:
-      - ports:
-        - port: "5672"    # AMQP
+    - from:
+        - podSelector:
+            matchLabels:
+               {{- toYaml .matchLabels | nindent 14 }}    
+      ports:
+        - port: 5672
           protocol: TCP
   {{- end }}
   egress:
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: {{ include "rabbitmq.name" . }}
-      toPorts:
-        - ports:
-            - port: "5672"
-              protocol: TCP
-            - port: "4369"
-              protocol: TCP
-            - port: "25672"
-              protocol: TCP
-            - port: "15672"
-              protocol: TCP
-            - port: "35672-35682"
-              protocol: TCP
-            - port: "6000-6500"
-              protocol: TCP
-    - toEntities:
-        - kube-apiserver
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "rabbitmq.name" . }}
+      ports:
+        - port: 5672
+          protocol: TCP
+        - port: 4369
+          protocol: TCP
+        - port: 25672
+          protocol: TCP
+        - port: 15672
+          protocol: TCP
+
 {{- end }}

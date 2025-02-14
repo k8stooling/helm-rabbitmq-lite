@@ -92,11 +92,14 @@ config:
   log_file_level: info
   cluster_partition_handling: autoheal
 
-ciliumNetworkPolicy:
+networkPolicy:
   enabled: false
   allowed_labels: []
-  # - "app: worker"
-  # - "app: tasker"
+  # - matchLabels: 
+  #     app: worker
+  #     tier: backend
+  # - matchLabels:
+  #     app: tasker
 
 debug_sidecar:
   enabled: false
